@@ -1,6 +1,8 @@
 use rand::Rng;
 use rand::distributions::{Bernoulli, Distribution};
 use std::f64::consts;
+use std::f64;
+
 
 fn generate_geometric(probability: f64) -> usize {
     // Create a Bernoulli distribution with the specified success probability
@@ -64,7 +66,7 @@ fn main() {
 mod tests {
     use super::*;
     #[test]
-    fn test_generate_geometric() {
+    fn test_print_generate_geometric() {
         let probability = 0.5;
         let mut samples = Vec::new();
         // Sample 100 values from the generate_geometric function
@@ -74,6 +76,42 @@ mod tests {
         }
         // Print the samples to the console
         println!("Samples from generate_geometric: {:?}", samples);
+    }
+    // #[test]
+    // fn test_mean_generate_geometric() {
+    //     let probability = 0.5;
+    //     let mut samples = Vec::new();
+    //     // Sample 100 values from the generate_geometric function
+    //     for _ in 0..100 {
+    //         let sample = generate_geometric(probability);
+    //         samples.push(sample);
+    //     }
+    //     // Compute the sample mean
+    //     let sample_mean = samples.iter().sum::<usize>() as f64 / samples.len() as f64;
+    //     // Check that the sample mean is within some distance of the expected value
+    //     let expected_mean = 1.0 / probability;
+    //     let tolerance = 0.01; // Set the tolerance to 1%
+    //     assert!(sample_mean >= expected_mean - tolerance && sample_mean <= expected_mean + tolerance);
+    // }
+    #[test]
+    fn test_generate_geometric() {
+        let probability = 0.5;
+        let bound = f64::floor(f64::ln(0.001) / f64::ln(1.0 - probability)) as usize;
+        println!("Bound: {:?}", bound);
+        let mut above_mean = 0;
+        let expected_mean = (1.0 - probability)/probability;
+        println!("expected_mean: {:?}", expected_mean);
+        // Sample 100 values from the generate_geometric function
+        for _ in 0..100 {
+            let sample = generate_geometric(probability);
+            assert!(sample >= 0);
+            assert!(sample < bound, "one of 100 samples (sample = {}) exceeded a bound
+            (bound = {}) that holds with probability 99.9%.  This test should fail randomly 1% of the time",sample,bound);
+            if sample > (f64::ceil(expected_mean) as usize) {
+                above_mean += 1;
+            }
+        }
+        assert!(above_mean > 5, "above_mean was {}", above_mean);
     }
     #[test]
     fn test_generate_double_geometric() {
