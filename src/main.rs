@@ -2,6 +2,8 @@ use rand::Rng;
 use rand::distributions::{Bernoulli, Distribution};
 use std::f64::consts;
 use std::f64;
+use std::collections::HashMap;
+
 
 
 fn generate_geometric(probability: f64) -> usize {
@@ -53,12 +55,22 @@ fn main() {
     // Create a vector to store the samples
     let mut samples = Vec::new();
     // Sample 100 values from the generate_truncated_double_geometric distribution
-    for _ in 0..100 {
+    for _ in 0..1000 {
         let sample = generate_truncated_double_geometric(s, n);
         samples.push(sample);
     }
     // Print the samples to the console
     println!("Samples: {:?}", samples);
+    let mut histogram = HashMap::new();
+    for value in samples {
+        *histogram.entry(value).or_insert(0) += 1;
+    }
+    let mut sorted_keys: Vec<usize> = histogram.keys().cloned().collect();
+    sorted_keys.sort();
+    println!("Histogram:");
+    for key in sorted_keys {
+        println!("{}, {}", key, histogram[&key]);
+    }
 }
 
 
@@ -77,22 +89,6 @@ mod tests {
         // Print the samples to the console
         println!("Samples from generate_geometric: {:?}", samples);
     }
-    // #[test]
-    // fn test_mean_generate_geometric() {
-    //     let probability = 0.5;
-    //     let mut samples = Vec::new();
-    //     // Sample 100 values from the generate_geometric function
-    //     for _ in 0..100 {
-    //         let sample = generate_geometric(probability);
-    //         samples.push(sample);
-    //     }
-    //     // Compute the sample mean
-    //     let sample_mean = samples.iter().sum::<usize>() as f64 / samples.len() as f64;
-    //     // Check that the sample mean is within some distance of the expected value
-    //     let expected_mean = 1.0 / probability;
-    //     let tolerance = 0.01; // Set the tolerance to 1%
-    //     assert!(sample_mean >= expected_mean - tolerance && sample_mean <= expected_mean + tolerance);
-    // }
     #[test]
     fn test_generate_geometric() {
         let probability = 0.5;
@@ -127,6 +123,24 @@ mod tests {
         println!("Samples from generate_double_geometric with s={}, n={}: {:?}", s, n, samples);
     }
     #[test]
+    fn test_generate_double_geometric_variance() {
+        let s = 1.0; // Set s to some value (e.g., 1.0)
+        let n = 25; // Set n to some value (e.g., 25)
+        let mut samples = Vec::new();
+        for _ in 0..1000 {
+            let sample = generate_double_geometric(s, n);
+            samples.push(sample);
+        }
+        let sample_mean = samples.iter().sum::<usize>() as f64 / samples.len() as f64;
+        let sample_variance = samples.iter().map(|x| ((*x as f64) - &sample_mean).powf(2.0)).sum::<f64>() / (samples.len() as f64 - 1.0);
+        let success_probability = 1.0 - consts::E.powf(-1.0 / s);
+        let expected_variance = 2.0 * (1.0-success_probability)/f64::powf(success_probability,2.0);
+        println!("Sample variance: {}, Expected variance {}", sample_variance,expected_variance);
+        let tolerance = 0.05; // Set the tolerance to 5%
+        assert!(sample_variance >= expected_variance * (1.0 - tolerance) && sample_variance <= expected_variance * (1.0 + tolerance),
+        "Sample variance ({}) is not within {}% of expected variance ({})", sample_variance, tolerance * 100.0, expected_variance);
+    }
+    #[test]
     fn test_generate_truncated_double_geometric() {
         let s = 1.0;
         let n = 25;
@@ -139,5 +153,49 @@ mod tests {
         }
         // Print the samples to the console
         println!("Samples from generate_truncated_geometric with s={}, n={}: {:?}", s, n, samples);
+    }
+    #[test]
+    fn test_generate_truncated_double_geometric_hoffding() {
+        assert!(test_internal_generate_truncated_double_geometric_hoffding());
+    }
+    fn test_internal_generate_truncated_double_geometric_hoffding() -> bool {
+        let number_samples = 1000;
+        let failure_prob = 0.1;
+        let s = 1.0; // Set s to some value (e.g., 1.0)
+        let n = 25; // Set n to some value (e.g., 25)
+        let t = f64::sqrt( f64::powf(2.0 * (n as f64),2.0) / (- 2.0 * (number_samples as f64)) * f64::ln(failure_prob/2.0));
+        // println!("t: {:?}", t);
+
+        let mut samples = Vec::new();
+        // Sample number_samples values from the generate_truncated_double_geometric function
+        for _ in 0..number_samples {
+            let sample = generate_truncated_double_geometric(s, n);
+            samples.push(sample);
+        }
+        // Compute the sample mean
+        let sample_mean = samples.iter().sum::<usize>() as f64 / samples.len() as f64;
+        // Check that the sample mean is within some distance of the expected value
+        let expected_mean = n as f64;
+        if sample_mean >= expected_mean - (t as f64) && sample_mean <= expected_mean + (t as f64) {
+            true // Return true if the test passes
+        } else {
+            false // Return false if the test fails
+        }
+    }
+    #[test]
+    fn test_failure_prob_of_test_truncated_double_geometric() {
+        // this test tests that the test_internal_generate_truncated_double_geometric_hoffding test is
+        // actually failing close to the expected % of the time.
+
+        //TODO:  This test is showing the hoffding test is not failing as much as expected, so
+        // I'm probably not computing its bound correctly or something.
+        let mut failed = 0;
+        let total_tests = 10000;
+        for _ in 0..total_tests {
+            if !test_internal_generate_truncated_double_geometric_hoffding() {
+                failed += 1;
+            }
+        }
+        println!("{} of tests failed out of {}", failed , total_tests);
     }
 }
