@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 
 
-fn generate_geometric(probability: f64) -> usize {
+fn generate_geometric(probability: f64) -> isize {
     // Create a Bernoulli distribution with the specified success probability
     let bernoulli = Bernoulli::new(probability).expect("Invalid probability");
 
@@ -21,46 +21,40 @@ fn generate_geometric(probability: f64) -> usize {
     attempts
 }
 
-fn generate_double_geometric(s: f64, n: usize) -> usize {
-    // Call the function and get the result for the first geometric
+fn generate_double_geometric(s: f64, n: isize) -> isize {
     let success_probability = 1.0 - consts::E.powf(-1.0 / s);
     let attempts1 = generate_geometric(success_probability);
-    // println!("Number of attempts until first success (Probability 1): {}", attempts1);
-
-    // Call the function and get the result for the second geometric
     let attempts2 = generate_geometric(success_probability);
-    // println!("Number of attempts until first success (Probability 2): {}", attempts2);
-
-    n + attempts1 - attempts2
+    (n + attempts1 - attempts2).try_into().unwrap()
 
 }
 
-fn generate_truncated_double_geometric(s: f64, n: usize) -> usize {
+fn generate_truncated_double_geometric(s: f64, n: isize) -> usize {
     let mut reject = 1;
     let mut sample = 0; // Declare sample here
     while reject == 1 {
         sample = generate_double_geometric(s, n); // Assign a value to sample inside the loop
-        if sample > 0 && sample < 2 * n {
+        if sample >= 0 && sample <= (2 * n).try_into().unwrap()  {
             reject = 0
         }
     }
-    sample // Return the final value of sample
+    sample.try_into().unwrap()  // Return the final value of sample
 }
 
 fn main() {
     // Parameters for the function calls
-    let epsilon = 1.0;
+    let epsilon = 0.01;
     let s = 1.0/epsilon;
-    let n = 25; //this will determine delta
+    let n = 50; //this will determine delta
     // Create a vector to store the samples
     let mut samples = Vec::new();
     // Sample 100 values from the generate_truncated_double_geometric distribution
-    for _ in 0..1000 {
+    for _ in 0..100000 {
         let sample = generate_truncated_double_geometric(s, n);
         samples.push(sample);
     }
     // Print the samples to the console
-    println!("Samples: {:?}", samples);
+    // println!("Samples: {:?}", samples);
     let mut histogram = HashMap::new();
     for value in samples {
         *histogram.entry(value).or_insert(0) += 1;
@@ -160,11 +154,11 @@ mod tests {
     }
     fn test_internal_generate_truncated_double_geometric_hoffding() -> bool {
         let number_samples = 1000;
-        let failure_prob = 0.1;
+        let failure_prob = 1.0;
         let s = 1.0; // Set s to some value (e.g., 1.0)
         let n = 25; // Set n to some value (e.g., 25)
         let t = f64::sqrt( f64::powf(2.0 * (n as f64),2.0) / (- 2.0 * (number_samples as f64)) * f64::ln(failure_prob/2.0));
-        // println!("t: {:?}", t);
+        println!("t: {:?}", t);
 
         let mut samples = Vec::new();
         // Sample number_samples values from the generate_truncated_double_geometric function
@@ -174,8 +168,10 @@ mod tests {
         }
         // Compute the sample mean
         let sample_mean = samples.iter().sum::<usize>() as f64 / samples.len() as f64;
+        println!("sample_mean: {:?}", sample_mean);
         // Check that the sample mean is within some distance of the expected value
         let expected_mean = n as f64;
+        println!("expected_mean: {:?}", expected_mean);
         if sample_mean >= expected_mean - (t as f64) && sample_mean <= expected_mean + (t as f64) {
             true // Return true if the test passes
         } else {
@@ -184,18 +180,16 @@ mod tests {
     }
     #[test]
     fn test_failure_prob_of_test_truncated_double_geometric() {
-        // this test tests that the test_internal_generate_truncated_double_geometric_hoffding test is
-        // actually failing close to the expected % of the time.
-
-        //TODO:  This test is showing the hoffding test is not failing as much as expected, so
-        // I'm probably not computing its bound correctly or something.
+        // this test tests how often the test_internal_generate_truncated_double_geometric_hoffding test is
+        // actually failing. It may fail significantly fewer times than the bound set since the inequality is not
+        // necessarily tight.
         let mut failed = 0;
-        let total_tests = 10000;
+        let total_tests = 100;
         for _ in 0..total_tests {
             if !test_internal_generate_truncated_double_geometric_hoffding() {
                 failed += 1;
             }
         }
-        println!("{} of tests failed out of {}", failed , total_tests);
+        println!("{} of tests failed out of {}", failed, total_tests);
     }
 }
