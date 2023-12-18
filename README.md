@@ -52,3 +52,6 @@ $$\Pr \left [ \left | \frac{1}{m} \sum_{i=1}^{m}Z_i - \frac{1}{m} \sum_{i=1}^{m}
 if each $Z_i \in [\ell , u]$ the exponent is $\frac{-2mt^2}{(u-\ell)^2}$.  This matches well the case of our truncated double geometric since it is bounded. We will implement two versions of this test
 1. All samples with the same parameters, such that we sample $m=1000$ $Z_i$'s and check that the average of these samples is no further than $t$ from the expected value of the distribution.  If it is futher than $t$, the test will fail and we will set $t$ using the probability bound above such that it fails randomly ~1% of the time.
 2. We will draw $m$ samples all from different truncated double geometric distributions with randomly asigned parameters. The test will check that the average of these samples is no further than $t$ from the average of the expected values of the distributions.  Again $t$ will be set such that the test fails randomly ~1% of the time.
+
+### Test empirical distribution
+TODO: create a test like in sheets where I compute a sample distribution and take difference with computed distribution.
