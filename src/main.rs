@@ -5,7 +5,8 @@ use std::f64;
 use std::collections::HashMap;
 
 
-
+///************************   Geometric  ************************************************* ///
+///*************************************************************************************** ///
 fn generate_geometric(probability: f64) -> isize {
     // Create a Bernoulli distribution with the specified success probability
     let bernoulli = Bernoulli::new(probability).expect("Invalid probability");
@@ -21,13 +22,80 @@ fn generate_geometric(probability: f64) -> isize {
     attempts
 }
 
+fn generate_geometric_rng<R: Rng + ?Sized>(probability: f64, rng : &mut R) -> isize {
+    // Create a Bernoulli distribution with the specified success probability
+    let bernoulli = Bernoulli::new(probability).expect("Invalid probability");
+
+    // Generate Bernoulli random numbers until the first success
+    // let mut rng = rand::thread_rng();
+    let mut attempts = 0;
+
+    while !bernoulli.sample( rng) {
+        attempts += 1;
+    }
+
+    attempts
+}
+
+#[derive(Debug)]
+pub struct Geometric {
+    success_probability: f64,
+}
+impl Geometric {
+    /// Creates a new `Geometric` distribution with the given success probability
+    pub fn new(success_probability: f64) -> Self {
+        Self {
+            success_probability,
+        }
+    }
+    /// Generates a sample from the `Geometric` distribution.
+    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+        generate_geometric_rng(self.success_probability, rng)
+    }
+}
+impl Distribution<isize> for Geometric {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+        self.sample(rng)
+    }
+}
+
+///************************  Double Geometric  ******************************************* ///
+///*************************************************************************************** ///
 fn generate_double_geometric(s: f64, n: isize) -> isize {
     let success_probability = 1.0 - consts::E.powf(-1.0 / s);
     let attempts1 = generate_geometric(success_probability);
     let attempts2 = generate_geometric(success_probability);
     (n + attempts1 - attempts2).try_into().unwrap()
-
 }
+fn generate_double_geometric_rng<R: Rng + ?Sized>(s: f64, n: isize, rng: &mut R) -> isize {
+    let success_probability = 1.0 - consts::E.powf(-1.0 / s);
+    let attempts1 = generate_geometric_rng(success_probability,rng);
+    let attempts2 = generate_geometric_rng(success_probability,rng);
+    (n + attempts1 - attempts2).try_into().unwrap()
+}
+
+#[derive(Debug)]
+pub struct DoubleGeometric {
+    success_probability: f64,
+}
+impl DoubleGeometric {
+    /// Creates a new `DoubleGeometric` distribution with the given success probability
+    pub fn new(success_probability: f64) -> Self {
+        Self {
+            success_probability,
+        }
+    }
+    /// Generates a sample from the `DoubleGeometric` distribution.
+    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+        generate_geometric_rng(self.success_probability, rng)
+    }
+}
+impl Distribution<isize> for DoubleGeometric {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> isize {
+        self.sample(rng)
+    }
+}
+
 
 fn generate_truncated_double_geometric(s: f64, n: isize) -> isize {
     let mut reject = 1;
@@ -42,6 +110,10 @@ fn generate_truncated_double_geometric(s: f64, n: isize) -> isize {
 }
 
 fn main() {
+    let mut rng = rand::thread_rng();
+    let p = 0.5;
+    generate_geometric_rng(p,&mut rng);
+
 
 }
 
@@ -61,26 +133,6 @@ mod tests {
         // Print the samples to the console
         println!("Samples from generate_geometric: {:?}", samples);
     }
-    // #[test]
-    // fn test_generate_geometric() {
-    //     let probability = 0.5;
-    //     let bound = f64::floor(f64::ln(0.001) / f64::ln(1.0 - probability)) as isize;
-    //     println!("Bound: {:?}", bound);
-    //     let mut above_mean = 0;
-    //     let expected_mean = (1.0 - probability)/probability;
-    //     println!("expected_mean: {:?}", expected_mean);
-    //     // Sample 100 values from the generate_geometric function
-    //     for _ in 0..100 {
-    //         let sample = generate_geometric(probability);
-    //         assert!(sample >= 0,  "sample was negative");
-    //         assert!(sample < bound, "one of 100 samples (sample = {}) exceeded a bound
-    //         (bound = {}) that holds with probability 99.9%.  This test should fail randomly 1% of the time",sample,bound);
-    //         if sample > (f64::ceil(expected_mean) as isize) {
-    //             above_mean += 1;
-    //         }
-    //     }
-    //     assert!(above_mean > 5, "above_mean was {}", above_mean);
-    // }
     #[test]
     fn test_generate_geometric_sample_dist() {
         let p = 0.5; // success probability
@@ -114,24 +166,6 @@ mod tests {
         // Print the samples to the console
         println!("Samples from generate_double_geometric with s={}, n={}: {:?}", s, n, samples);
     }
-    // #[test]
-    // fn test_generate_double_geometric_variance() {
-    //     let s = 1.0; // Set s to some value (e.g., 1.0)
-    //     let n = 25; // Set n to some value (e.g., 25)
-    //     let mut samples = Vec::new();
-    //     for _ in 0..1000 {
-    //         let sample = generate_double_geometric(s, n);
-    //         samples.push(sample);
-    //     }
-    //     let sample_mean = samples.iter().sum::<isize>() as f64 / samples.len() as f64;
-    //     let sample_variance = samples.iter().map(|x| ((*x as f64) - &sample_mean).powf(2.0)).sum::<f64>() / (samples.len() as f64 - 1.0);
-    //     let success_probability = 1.0 - consts::E.powf(-1.0 / s);
-    //     let expected_variance = 2.0 * (1.0-success_probability)/f64::powf(success_probability,2.0);
-    //     println!("Sample variance: {}, Expected variance {}", sample_variance,expected_variance);
-    //     let tolerance = 0.05; // Set the tolerance to 5%
-    //     assert!(sample_variance >= expected_variance * (1.0 - tolerance) && sample_variance <= expected_variance * (1.0 + tolerance),
-    //     "Sample variance ({}) is not within {}% of expected variance ({})", sample_variance, tolerance * 100.0, expected_variance);
-    // }
     #[test]
     fn test_generate_truncated_double_geometric() {
         let s = 1.0;
@@ -176,21 +210,6 @@ mod tests {
             false // Return false if the test fails
         }
     }
-    // #[test]
-    // fn test_failure_prob_of_test_truncated_double_geometric() {
-    //     // this test tests how often the test_internal_generate_truncated_double_geometric_hoffding test is
-    //     // actually failing. It may fail significantly fewer times than the bound set since the inequality is not
-    //     // necessarily tight.
-    //     let mut failed = 0;
-    //     let total_tests = 100;
-    //     for _ in 0..total_tests {
-    //         if !test_internal_generate_truncated_double_geometric_hoffding() {
-    //             failed += 1;
-    //         }
-    //     }
-    //     println!("{} of tests failed out of {}", failed, total_tests);
-    // }
-
     #[test]
     fn test_generate_truncated_double_geometric_sample_dist() {
         let epsilon = 1.0;
@@ -224,4 +243,21 @@ mod tests {
             assert!((observed_probability - expected_probability).abs() <= 0.01, "Observed probability is not within 1% of expected probability");
         }
     }
+    #[test]
+    fn test_geometric() {
+        let mut rng = rand::thread_rng();
+        let distribution = Geometric {
+            success_probability: 0.5,
+        };
+        distribution.sample(&mut rng);
+    }
+    #[test]
+    fn test_double_geometric() {
+        let mut rng = rand::thread_rng();
+        let distribution = DoubleGeometric {
+            success_probability: 0.5,
+        };
+        distribution.sample(&mut rng);
+    }
+
 }
